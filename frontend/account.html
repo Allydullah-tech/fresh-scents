@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akaunti Yangu - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section>
+  <div class="container" style="max-width:800px">
+    <div id="notLoggedIn" class="hidden">
+      <div class="empty-state">
+        <div class="icon"><i class="bi bi-lock"></i></div>
+        <p>Tafadhali ingia kwenye akaunti yako kuona ukurasa huu.</p>
+        <a href="login.html?redirect=account.html" class="btn btn-gold" style="margin-top:14px">Ingia Sasa</a>
+      </div>
+    </div>
+
+    <div id="accountArea" class="hidden">
+      <div class="section-head" style="margin-bottom:10px;text-align:left;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2>Karibu, <span id="welcomeName"></span></h2>
+          <p class="muted">Simamia taarifa zako na fuatilia oda zako zote hapa.</p>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Toka</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('orders')"><i class="bi bi-box-seam"></i> Oda Zangu</button>
+        <button class="tab-btn" onclick="showTab('profile')"><i class="bi bi-person-circle"></i> Wasifu Wangu</button>
+        <button class="tab-btn" onclick="showTab('security')"><i class="bi bi-lock"></i> Password &amp; Usalama</button>
+      </div>
+
+      <!-- ORDERS TAB -->
+      <div id="tab-orders">
+        <div id="ordersList"><p class="muted">Inapakia oda zako...</p></div>
+      </div>
+
+      <!-- PROFILE TAB -->
+      <div id="tab-profile" class="hidden">
+        <div class="form-card" style="max-width:100%">
+          <h3 style="margin-top:0">Sasisha Taarifa Zangu</h3>
+          <div id="profileAlert"></div>
+          <form id="profileForm">
+            <label>Jina Kamili</label>
+            <input type="text" id="p_full_name" required>
+            <label>Namba ya Simu</label>
+            <input type="text" id="p_phone" disabled>
+            <label>Email</label>
+            <input type="email" id="p_email">
+            <label>Anuani</label>
+            <input type="text" id="p_address">
+            <button type="submit" class="btn btn-gold btn-block" style="margin-top:16px">Hifadhi Mabadiliko</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- SECURITY TAB -->
+      <div id="tab-security" class="hidden">
+        <div class="grid" style="display:grid;gap:20px">
+          <div class="form-card" style="max-width:100%">
+            <h3 style="margin-top:0">Badilisha Password</h3>
+            <div id="passAlert"></div>
+            <form id="passForm">
+              <label>Password ya Sasa</label>
+              <input type="password" id="current_password" required>
+              <label>Password Mpya</label>
+              <input type="password" id="new_password" required>
+              <label>Rudia Password Mpya</label>
+              <input type="password" id="confirm_password" required>
+              <button type="submit" class="btn btn-gold btn-block" style="margin-top:16px">Badilisha Password</button>
+            </form>
+          </div>
+          <div class="form-card" style="max-width:100%">
+            <h3 style="margin-top:0">Sasisha Swali la Usalama</h3>
+            <div id="secAlert"></div>
+            <form id="secForm">
+              <label>Swali la Usalama</label>
+              <select id="secQSelect" onchange="onSecQChange()" required>
+                <option value="">-- Chagua Swali --</option>
+                <option value="Jina la mnyama wako wa kwanza ni nani?">Jina la mnyama wako wa kwanza ni nani?</option>
+                <option value="Ulizaliwa mji/kijiji gani?">Ulizaliwa mji/kijiji gani?</option>
+                <option value="Jina la shule yako ya msingi ni lipi?">Jina la shule yako ya msingi ni lipi?</option>
+                <option value="Chakula unachokipenda zaidi ni kipi?">Chakula unachokipenda zaidi ni kipi?</option>
+                <option value="Jina la rafiki yako wa karibu utotoni ni nani?">Jina la rafiki yako wa karibu utotoni ni nani?</option>
+                <option value="Jina la kati la mzazi wako ni lipi?">Jina la kati la mzazi wako ni lipi?</option>
+                <option value="__custom__">Swali Langu Mwenyewe (Andika)</option>
+              </select>
+              <input type="text" id="secQCustom" class="hidden" placeholder="Andika swali lako hapa" style="margin-top:10px">
+              <label>Jibu Jipya</label>
+              <input type="text" id="security_answer" required>
+              <button type="submit" class="btn btn-gold btn-block" style="margin-top:16px">Sasisha</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+const statusOrder = ['pending', 'confirmed', 'processing', 'completed'];
+const statusLabels = { pending: 'Inasubiri', confirmed: 'Imethibitishwa', processing: 'Inaandaliwa', completed: 'Imekamilika' };
+
+async function init() {
+  const r = await apiGet('auth.php', { action: 'me' });
+  if (!r.logged_in) {
+    document.getElementById('notLoggedIn').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('accountArea').classList.remove('hidden');
+  document.getElementById('welcomeName').textContent = r.customer.full_name;
+  document.getElementById('p_full_name').value = r.customer.full_name;
+  document.getElementById('p_phone').value = r.customer.phone;
+  document.getElementById('p_email').value = r.customer.email || '';
+  document.getElementById('p_address').value = r.customer.address || '';
+  loadOrders();
+}
+
+function showTab(tab) {
+  ['orders', 'profile', 'security'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', ['orders','profile','security'][i] === tab));
+}
+
+async function loadOrders() {
+  const r = await apiGet('customer-profile.php', { action: 'my_orders' });
+  const wrap = document.getElementById('ordersList');
+  if (!r.success || !r.orders.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon"><i class="bi bi-box-seam"></i></div><p>Bado hujafanya oda yoyote.</p><a href="products.html" class="btn btn-gold" style="margin-top:14px">Anza Kununua</a></div>`;
+    return;
+  }
+  wrap.innerHTML = r.orders.map(o => `
+    <div class="order-card">
+      <div class="top-row">
+        <div><strong>${o.order_code}</strong> <span class="muted">&middot; ${o.delivery_type === 'delivery' ? 'Delivery' : 'Dukani'} &middot; ${fdate(o.created_at)}</span></div>
+        <span class="badge badge-${o.status}">${statusLabels[o.status] || o.status}</span>
+      </div>
+      <p class="alert alert-info" style="margin-top:12px">${o.status_message}</p>
+      <p style="display:flex;justify-content:space-between">
+        <span>Jumla: <strong>${money(o.total_amount)}</strong></span>
+        ${o.delivery_type === 'delivery' ? `<span class="badge badge-${o.payment_status}">${o.payment_status}</span>` : ''}
+      </p>
+    </div>
+  `).join('');
+}
+
+document.getElementById('profileForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    full_name: document.getElementById('p_full_name').value.trim(),
+    email: document.getElementById('p_email').value.trim(),
+    address: document.getElementById('p_address').value.trim(),
+  };
+  const r = await apiPost('customer-profile.php', payload, 'update_info');
+  document.getElementById('profileAlert').innerHTML = `<p class="alert ${r.success?'alert-success':'alert-error'}">${r.message}</p>`;
+});
+
+document.getElementById('passForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    current_password: document.getElementById('current_password').value,
+    new_password: document.getElementById('new_password').value,
+    confirm_password: document.getElementById('confirm_password').value,
+  };
+  const r = await apiPost('customer-profile.php', payload, 'update_password');
+  document.getElementById('passAlert').innerHTML = `<p class="alert ${r.success?'alert-success':'alert-error'}">${r.message}</p>`;
+  if (r.success) document.getElementById('passForm').reset();
+});
+
+function onSecQChange() {
+  const sel = document.getElementById('secQSelect');
+  document.getElementById('secQCustom').classList.toggle('hidden', sel.value !== '__custom__');
+}
+function getSecurityQuestion() {
+  const sel = document.getElementById('secQSelect');
+  if (sel.value === '__custom__') return document.getElementById('secQCustom').value.trim();
+  return sel.value;
+}
+
+document.getElementById('secForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const security_question = getSecurityQuestion();
+  if (!security_question) {
+    document.getElementById('secAlert').innerHTML = `<p class="alert alert-error">Tafadhali chagua au andika swali la usalama.</p>`;
+    return;
+  }
+  const payload = {
+    security_question,
+    security_answer: document.getElementById('security_answer').value.trim(),
+  };
+  const r = await apiPost('customer-profile.php', payload, 'update_security');
+  document.getElementById('secAlert').innerHTML = `<p class="alert ${r.success?'alert-success':'alert-error'}">${r.message}</p>`;
+  if (r.success) document.getElementById('secForm').reset();
+});
+
+async function logout() {
+  await apiPost('auth.php', {}, 'logout');
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>

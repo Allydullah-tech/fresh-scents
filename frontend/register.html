@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jisajili - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section>
+  <div class="container">
+    <div class="form-card">
+      <img src="images/logo.jpeg" alt="logo" style="width:70px;margin:0 auto 14px">
+      <h2>Tengeneza Akaunti Mpya</h2>
+      <p class="muted center" style="margin-top:-10px">Ni haraka na rahisi — hii itakusaidia kufuatilia oda zako zote</p>
+
+      <div id="alertBox"></div>
+
+      <form id="regForm">
+        <label>Jina Kamili</label>
+        <input type="text" id="full_name" required>
+
+        <div class="form-row">
+          <div><label>Namba ya Simu</label><input type="text" id="phone" required placeholder="0621002091"></div>
+          <div><label>Email (hiari)</label><input type="email" id="email"></div>
+        </div>
+
+        <label>Anuani (hiari)</label>
+        <input type="text" id="address">
+
+        <div class="form-row">
+          <div><label>Password</label><input type="password" id="password" required></div>
+          <div><label>Rudia Password</label><input type="password" id="confirm_password" required></div>
+        </div>
+
+        <label>Swali la Usalama (kwa kusahau password baadaye)</label>
+        <select id="secQSelect" onchange="onSecQChange()" required>
+          <option value="">-- Chagua Swali --</option>
+          <option value="Jina la mnyama wako wa kwanza ni nani?">Jina la mnyama wako wa kwanza ni nani?</option>
+          <option value="Ulizaliwa mji/kijiji gani?">Ulizaliwa mji/kijiji gani?</option>
+          <option value="Jina la shule yako ya msingi ni lipi?">Jina la shule yako ya msingi ni lipi?</option>
+          <option value="Chakula unachokipenda zaidi ni kipi?">Chakula unachokipenda zaidi ni kipi?</option>
+          <option value="Jina la rafiki yako wa karibu utotoni ni nani?">Jina la rafiki yako wa karibu utotoni ni nani?</option>
+          <option value="Jina la kati la mzazi wako ni lipi?">Jina la kati la mzazi wako ni lipi?</option>
+          <option value="__custom__">Swali Langu Mwenyewe (Andika)</option>
+        </select>
+        <input type="text" id="secQCustom" class="hidden" placeholder="Andika swali lako hapa" style="margin-top:10px">
+
+        <label>Jibu la Swali</label>
+        <input type="text" id="security_answer" required>
+
+        <button type="submit" class="btn btn-gold btn-block" style="margin-top:18px">Jisajili Sasa</button>
+      </form>
+
+      <div class="switch-link">Tayari una akaunti? <a href="login.html">Ingia Hapa</a></div>
+    </div>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+function onSecQChange() {
+  const sel = document.getElementById('secQSelect');
+  document.getElementById('secQCustom').classList.toggle('hidden', sel.value !== '__custom__');
+}
+function getSecurityQuestion() {
+  const sel = document.getElementById('secQSelect');
+  if (sel.value === '__custom__') return document.getElementById('secQCustom').value.trim();
+  return sel.value;
+}
+
+document.getElementById('regForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const password = document.getElementById('password').value;
+  const confirm = document.getElementById('confirm_password').value;
+  const box = document.getElementById('alertBox');
+
+  if (password !== confirm) { box.innerHTML = `<p class="alert alert-error">Password hazifanani.</p>`; return; }
+
+  const security_question = getSecurityQuestion();
+  if (!security_question) { box.innerHTML = `<p class="alert alert-error">Tafadhali chagua au andika swali la usalama.</p>`; return; }
+
+  const payload = {
+    full_name: document.getElementById('full_name').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    address: document.getElementById('address').value.trim(),
+    password,
+    security_question,
+    security_answer: document.getElementById('security_answer').value.trim(),
+  };
+
+  const r = await apiPost('auth.php', payload, 'register');
+  if (!r.success) {
+    box.innerHTML = `<p class="alert alert-error">${r.message}</p>`;
+  } else {
+    box.innerHTML = `<p class="alert alert-success">${r.message}</p>`;
+    setTimeout(() => window.location.href = 'account.html', 700);
+  }
+});
+</script>
+</body>
+</html>

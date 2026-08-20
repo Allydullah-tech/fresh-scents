@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fuatilia Oda Yako - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section>
+  <div class="container" style="max-width:700px">
+    <div class="section-head" style="margin-bottom:20px">
+      <div class="eyebrow">Fuatilia Oda</div>
+      <h2>Fuatilia Maendeleo ya Oda Yako</h2>
+      <p class="muted">Ingiza namba ya oda yako (mfano FS-A1B2C3) au namba ya simu uliyotumia kuagiza.</p>
+    </div>
+
+    <div class="form-card" style="max-width:100%">
+      <form id="trackForm">
+        <label>Namba ya Oda AU Namba ya Simu</label>
+        <input type="text" id="trackInput" required placeholder="FS-XXXXXX au 0621002091">
+        <button type="submit" class="btn btn-gold btn-block" style="margin-top:16px">Fuatilia Sasa</button>
+      </form>
+    </div>
+
+    <div id="resultsWrap" style="margin-top:30px"></div>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+const statusOrder = ['pending', 'confirmed', 'processing', 'completed'];
+const statusLabels = { pending: 'Inasubiri', confirmed: 'Imethibitishwa', processing: 'Inaandaliwa', completed: 'Imekamilika' };
+
+document.getElementById('trackForm').addEventListener('submit', (e) => { e.preventDefault(); doTrack(); });
+
+async function doTrack() {
+  const val = document.getElementById('trackInput').value.trim();
+  const wrap = document.getElementById('resultsWrap');
+  wrap.innerHTML = '<p class="muted center">Inatafuta...</p>';
+
+  const isPhone = /^0[67]\d{8}$/.test(val);
+  const params = isPhone ? { phone: val } : { order_code: val.toUpperCase() };
+  const r = await apiGet('track.php', params);
+
+  if (!r.success) { wrap.innerHTML = `<p class="alert alert-error">${r.message}</p>`; return; }
+  wrap.innerHTML = r.orders.map(renderOrderCard).join('');
+}
+
+function renderOrderCard(o) {
+  const cancelled = o.status === 'cancelled';
+  const stepsHtml = cancelled ? '' : `
+    <div class="status-track">
+      ${statusOrder.map(s => {
+        const idx = statusOrder.indexOf(s);
+        const curIdx = statusOrder.indexOf(o.status);
+        const cls = idx < curIdx ? 'done' : (idx === curIdx ? 'current' : '');
+        return `<div class="status-step ${cls}"><div class="dot">${idx < curIdx ? '<i class="bi bi-check-lg"></i>' : idx+1}</div><div class="label">${statusLabels[s]}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  const paymentBlock = o.delivery_type === 'delivery' ? renderPaymentBlock(o) : '';
+
+  return `
+  <div class="order-card">
+    <div class="top-row">
+      <div><strong style="font-size:17px">${o.order_code}</strong> <span class="muted">&middot; ${o.delivery_type === 'delivery' ? 'Delivery' : 'Kuchukua Dukani'}</span></div>
+      <span class="badge badge-${o.status}">${o.status_label}</span>
+    </div>
+    ${cancelled ? `<p class="alert alert-error" style="margin-top:14px">${o.status_message}</p>` : stepsHtml}
+    <p class="alert alert-info" style="margin-top:14px">${o.status_message}</p>
+
+    <div class="table-wrap" style="margin-top:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="background:#f5ecd2"><th style="padding:8px 12px;text-align:left;font-size:12.5px">Bidhaa</th><th style="padding:8px 12px;text-align:left;font-size:12.5px">Idadi</th><th style="padding:8px 12px;text-align:left;font-size:12.5px">Jumla</th></tr>
+        ${o.items.map(i => `<tr><td style="padding:8px 12px;font-size:13.5px;border-top:1px solid var(--border)">${i.product_name} (${i.ml}ml)</td><td style="padding:8px 12px;font-size:13.5px;border-top:1px solid var(--border)">${i.qty}</td><td style="padding:8px 12px;font-size:13.5px;border-top:1px solid var(--border)">${money(i.subtotal)}</td></tr>`).join('')}
+      </table>
+    </div>
+    <p style="text-align:right;font-weight:800;margin-top:10px">Jumla Kuu: ${money(o.total_amount)}</p>
+
+    ${paymentBlock}
+  </div>`;
+}
+
+function renderPaymentBlock(o) {
+  if (o.payment_status === 'paid') {
+    return `<div class="alert alert-success" style="margin-top:10px"><i class="bi bi-check-circle-fill"></i> Malipo yamethibitishwa. Asante!</div>`;
+  }
+  if (o.payment_status === 'pending_confirmation') {
+    return `<div class="alert alert-info" style="margin-top:10px"><i class="bi bi-hourglass-split"></i> Taarifa za malipo zimetumwa (Namba ya Muamala: ${o.payment_transaction_id || '-'}), zinasubiri uthibitisho wa duka.</div>`;
+  }
+  // unpaid — allow submitting payment details
+  return `
+    <div class="alert alert-error" style="margin-top:10px"><i class="bi bi-exclamation-triangle"></i> Bado hujatuma taarifa za malipo kwa oda hii ya delivery.</div>
+    <form onsubmit="submitPayment(event, '${o.order_code}')" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:14px">
+      <label>Jina Ulilotumia Kulipia</label>
+      <input type="text" name="payment_name" required>
+      <label>Namba ya Simu Uliyolipia Nayo</label>
+      <input type="text" name="phone" required placeholder="0621002091">
+      <label>Namba ya Muamala (Transaction ID)</label>
+      <input type="text" name="transaction_id" required>
+      <button type="submit" class="btn btn-gold btn-block" style="margin-top:12px">Tuma Taarifa za Malipo</button>
+    </form>`;
+}
+
+async function submitPayment(e, order_code) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    order_code,
+    payment_name: form.payment_name.value.trim(),
+    phone: form.phone.value.trim(),
+    transaction_id: form.transaction_id.value.trim(),
+  };
+  const r = await apiPost('orders.php', payload, 'submit_payment');
+  alert(r.message);
+  if (r.success) doTrack();
+}
+
+// Auto-fill from query string (?code=FS-XXXXX)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('code')) {
+  document.getElementById('trackInput').value = urlParams.get('code');
+  doTrack();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manukato Yote - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section style="padding-top:38px">
+  <div class="container">
+    <div class="section-head" style="margin-bottom:26px">
+      <div class="eyebrow">Duka Letu</div>
+      <h2>Manukato Yote</h2>
+    </div>
+
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:30px;justify-content:center">
+      <div style="position:relative;max-width:320px;width:100%">
+        <i class="bi bi-search" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+        <input type="text" id="searchBox" placeholder="Tafuta manukato..." style="width:100%;padding:12px 16px 12px 40px;border-radius:999px;border:1px solid var(--border)">
+      </div>
+      <select id="categoryFilter" style="max-width:220px;padding:12px 16px;border-radius:999px;border:1px solid var(--border)">
+        <option value="">Aina Zote</option>
+      </select>
+    </div>
+
+    <div class="product-grid" id="productGrid"></div>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+<a href="track.html" class="floating-track-btn"><i class="bi bi-box-seam"></i> Fuatilia Oda</a>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+let allProducts = [];
+
+async function loadProducts() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = '<p class="muted">Inapakia bidhaa...</p>';
+  const q = document.getElementById('searchBox').value;
+  const category = document.getElementById('categoryFilter').value;
+  const r = await apiGet('products.php', { q, category });
+  if (!r.success) { grid.innerHTML = '<p class="muted">Imeshindwa kupakia bidhaa.</p>'; return; }
+
+  if (allProducts.length === 0) {
+    const catSelect = document.getElementById('categoryFilter');
+    r.categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.name;
+      catSelect.appendChild(opt);
+    });
+  }
+  allProducts = r.products;
+  renderGrid(r.products);
+}
+
+function renderGrid(products) {
+  const grid = document.getElementById('productGrid');
+  if (!products.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon"><i class="bi bi-droplet-half"></i></div><p>Hakuna bidhaa zilizopatikana.</p></div>`;
+    return;
+  }
+  grid.innerHTML = products.map(p => {
+    const mlLabel = p.variants.length > 1
+      ? `${p.variants.length} aina za ML (${p.variants.map(v => v.ml).join(', ')})`
+      : (p.variants[0] ? `${p.variants[0].ml} ML` : '');
+    const outOfStock = p.total_stock <= 0;
+    const priceLabel = p.min_price === p.max_price ? money(p.min_price) : `Kuanzia ${money(p.min_price)}`;
+    return `
+    <div class="product-card" onclick="window.location.href='product.html?id=${p.id}'">
+      <div class="img-wrap">
+        ${p.is_featured == 1 ? '<span class="featured-tag"><i class="bi bi-star-fill"></i> Maarufu</span>' : ''}
+        ${p.image_url ? `<img src="../backend/${p.image_url}" alt="${p.name}">` : `<span class="placeholder"><i class="bi bi-droplet-half"></i></span>`}
+      </div>
+      <div class="info">
+        <div class="brand">${p.brand || 'Fresh Scents'}</div>
+        <h4>${p.name}</h4>
+        <div class="ml">${mlLabel} ${outOfStock ? ' &middot; <span style="color:#c0392b">Imeisha Stock</span>' : ''}</div>
+        <div class="price-row">
+          <span class="price">${priceLabel}</span>
+          <button class="add-btn" onclick="event.stopPropagation(); window.location.href='product.html?id=${p.id}'">Chagua Ukubwa</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+
+document.getElementById('searchBox').addEventListener('input', debounce(loadProducts, 350));
+document.getElementById('categoryFilter').addEventListener('change', loadProducts);
+function debounce(fn, delay) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); }; }
+
+loadProducts();
+</script>
+</body>
+</html>

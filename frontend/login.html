@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingia - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section>
+  <div class="container">
+    <div class="form-card">
+      <img src="images/logo.jpeg" alt="logo" style="width:70px;margin:0 auto 14px">
+      <h2>Karibu Tena</h2>
+      <p class="muted center" style="margin-top:-10px">Ingia kwenye akaunti yako kufuatilia oda na kuhifadhi taarifa zako</p>
+
+      <div id="alertBox"></div>
+
+      <form id="loginForm">
+        <label>Namba ya Simu</label>
+        <input type="text" id="phone" required placeholder="0621002091">
+        <label>Password</label>
+        <input type="password" id="password" required>
+        <a href="../backend/auth/forgot-password.php" style="display:block;text-align:right;font-size:13px;margin-top:6px">Umesahau password?</a>
+        <button type="submit" class="btn btn-gold btn-block" style="margin-top:18px">Ingia</button>
+      </form>
+
+      <div class="switch-link">Huna akaunti? <a href="register.html">Jisajili Sasa</a></div>
+      <div class="switch-link"><a href="products.html">Endelea Bila Akaunti &rarr;</a></div>
+    </div>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+const redirectTo = new URLSearchParams(window.location.search).get('redirect') || 'account.html';
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const phone = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+  const r = await apiPost('auth.php', { phone, password }, 'login');
+  const box = document.getElementById('alertBox');
+  if (!r.success) {
+    box.innerHTML = `<p class="alert alert-error">${r.message}</p>`;
+  } else {
+    box.innerHTML = `<p class="alert alert-success">${r.message}</p>`;
+    setTimeout(() => window.location.href = redirectTo, 700);
+  }
+});
+</script>
+</body>
+</html>

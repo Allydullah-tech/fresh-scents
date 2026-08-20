@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kikapu Changu - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section>
+  <div class="container" style="max-width:900px">
+    <div class="section-head" style="margin-bottom:20px">
+      <div class="eyebrow">Kikapu Changu</div>
+      <h2>Kamilisha Oda Yako</h2>
+    </div>
+
+    <div id="cartItemsWrap"></div>
+
+    <div id="checkoutFormWrap"></div>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+
+<!-- PAYMENT INSTRUCTIONS MODAL -->
+<div class="modal-bg hidden" id="paymentModal">
+  <div class="modal" style="max-width:480px">
+    <h3><i class="bi bi-check-circle-fill" style="color:var(--gold)"></i> Oda Imepokelewa!</h3>
+    <p id="paymentMsgText" style="line-height:1.7;font-size:15px"></p>
+    <p style="font-size:14px">Namba ya Oda Yako: <strong id="orderCodeShow"></strong> <br><span class="muted">(Tunza namba hii kufuatilia oda yako)</span></p>
+
+    <form id="paymentDetailsForm" style="margin-top:16px">
+      <label>Jina Ulilotumia Kulipia</label>
+      <input type="text" id="pd_payment_name" required>
+      <label>Namba ya Simu Uliyolipia Nayo</label>
+      <input type="text" id="pd_phone" required placeholder="0621002091">
+      <label>Namba ya Muamala (Transaction ID)</label>
+      <input type="text" id="pd_transaction_id" required>
+      <button type="submit" class="btn btn-gold btn-block" style="margin-top:14px">Tuma Taarifa za Malipo</button>
+    </form>
+    <div id="paymentSubmitMsg"></div>
+    <button class="btn btn-outline btn-block" style="margin-top:10px" onclick="closePaymentModalAndTrack()">Nitatuma Baadaye — Nenda Kufuatilia Oda</button>
+  </div>
+</div>
+
+<!-- SUCCESS (PICKUP) MODAL -->
+<div class="modal-bg hidden" id="successModal">
+  <div class="modal center" style="max-width:440px">
+    <div style="font-size:50px;color:var(--gold)"><i class="bi bi-check-circle-fill"></i></div>
+    <h3>Oda Imepokelewa!</h3>
+    <p>Namba ya Oda Yako: <strong id="orderCodeShow2"></strong></p>
+    <p class="muted">Njoo dukani kuchukua bidhaa yako. Tutakujulisha mara itakapokuwa tayari.</p>
+    <a href="track.html" class="btn btn-gold btn-block">Fuatilia Oda Yangu</a>
+    <a href="products.html" class="btn btn-outline btn-block" style="margin-top:10px">Endelea Kununua</a>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+let deliveryType = 'pickup';
+let lastOrderCode = '';
+let isLoggedIn = false;
+let customerInfo = null;
+
+function renderCartItems() {
+  const cart = getCart();
+  const wrap = document.getElementById('cartItemsWrap');
+  if (!cart.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon"><i class="bi bi-cart-x"></i></div><p>Kikapu chako kipo tupu.</p><a href="products.html" class="btn btn-gold" style="margin-top:14px">Anza Kununua</a></div>`;
+    document.getElementById('checkoutFormWrap').innerHTML = '';
+    return;
+  }
+  wrap.innerHTML = `<div class="form-card" style="max-width:100%">` +
+    cart.map(i => `
+      <div class="cart-item">
+        <div class="thumb">${i.image_url ? `<img src="${i.image_url}">` : '<i class="bi bi-droplet-half"></i>'}</div>
+        <div class="cart-info">
+          <div class="name">${i.name}</div>
+          <div class="meta">${i.ml} ML &middot; ${money(i.price)}</div>
+        </div>
+        <div class="cart-qty">
+          <button onclick="changeCartQty(${i.variant_id}, -1)">−</button>
+          <span>${i.qty}</span>
+          <button onclick="changeCartQty(${i.variant_id}, 1)">+</button>
+        </div>
+        <span class="remove" onclick="removeFromCart(${i.variant_id}); renderCartItems()">Ondoa</span>
+      </div>
+    `).join('') +
+    `<div class="cart-total-row"><span>Jumla</span><span>${money(cartTotal())}</span></div></div>`;
+
+  renderCheckoutForm();
+}
+
+function changeCartQty(id, delta) {
+  const item = getCart().find(i => i.variant_id === id);
+  if (item) updateCartQty(id, item.qty + delta);
+  renderCartItems();
+}
+
+async function renderCheckoutForm() {
+  const authRes = await apiGet('auth.php', { action: 'me' });
+  isLoggedIn = authRes.logged_in;
+  customerInfo = authRes.customer || null;
+
+  const wrap = document.getElementById('checkoutFormWrap');
+  wrap.innerHTML = `
+    <div class="form-card" style="max-width:100%;margin-top:24px">
+      <h3 style="margin-top:0">Chagua Njia ya Kupata Bidhaa</h3>
+      <div class="radio-cards">
+        <div class="radio-card selected" id="pickupCard" onclick="selectDelivery('pickup')">
+          <div class="icon"><i class="bi bi-shop"></i></div><strong>Nitachukua Dukani</strong>
+          <p class="muted" style="font-size:12.5px;margin:4px 0 0">Hakuna malipo ya awali mtandaoni</p>
+        </div>
+        <div class="radio-card" id="deliveryCard" onclick="selectDelivery('delivery')">
+          <div class="icon"><i class="bi bi-truck"></i></div><strong>Nataka Delivery</strong>
+          <p class="muted" style="font-size:12.5px;margin:4px 0 0">Utahitajika kulipia kabla</p>
+        </div>
+      </div>
+
+      ${!isLoggedIn ? `
+      <div id="guestFields" style="margin-top:20px">
+        <p class="alert alert-info">Huna akaunti? Hakuna shida — jaza taarifa zako hapa chini. Au <a href="login.html">ingia kwenye akaunti yako</a> kama unayo.</p>
+        <div class="form-row">
+          <div><label>Jina Lako Kamili</label><input type="text" id="guest_name" required></div>
+          <div><label>Namba ya Simu</label><input type="text" id="guest_phone" required placeholder="0621002091"></div>
+        </div>
+        <div id="addressWrap" class="hidden"><label>Anuani ya Kufikishiwa</label><input type="text" id="guest_address" placeholder="Mtaa, Mji, alama za karibu..."></div>
+      </div>` : `
+      <div style="margin-top:20px">
+        <p class="alert alert-info">Umeingia kama <strong>${customerInfo.full_name}</strong> (${customerInfo.phone})</p>
+        <div id="addressWrapLoggedIn" class="hidden"><label>Anuani ya Kufikishiwa</label><input type="text" id="guest_address_li" value="${customerInfo.address || ''}"></div>
+      </div>`}
+
+      <label>Maelezo ya Ziada (hiari)</label>
+      <textarea id="orderNotes" placeholder="Mfano: rangi unayopenda, muda wa kufikishiwa..."></textarea>
+
+      <button class="btn btn-gold btn-block" style="margin-top:18px" onclick="placeOrder()">Thibitisha Oda — ${money(cartTotal())}</button>
+    </div>
+  `;
+}
+
+function selectDelivery(type) {
+  deliveryType = type;
+  document.getElementById('pickupCard').classList.toggle('selected', type === 'pickup');
+  document.getElementById('deliveryCard').classList.toggle('selected', type === 'delivery');
+  const aw = document.getElementById('addressWrap');
+  const awli = document.getElementById('addressWrapLoggedIn');
+  if (aw) aw.classList.toggle('hidden', type !== 'delivery');
+  if (awli) awli.classList.toggle('hidden', type !== 'delivery');
+}
+
+async function placeOrder() {
+  const cart = getCart();
+  if (!cart.length) return;
+
+  const payload = {
+    items: cart.map(i => ({ variant_id: i.variant_id, qty: i.qty })),
+    delivery_type: deliveryType,
+    notes: document.getElementById('orderNotes').value,
+  };
+
+  if (!isLoggedIn) {
+    payload.guest_name = document.getElementById('guest_name').value.trim();
+    payload.guest_phone = document.getElementById('guest_phone').value.trim();
+    payload.guest_address = deliveryType === 'delivery' ? document.getElementById('guest_address').value.trim() : '';
+    if (!payload.guest_name || !payload.guest_phone) { alert('Tafadhali jaza jina na namba ya simu.'); return; }
+    if (deliveryType === 'delivery' && !payload.guest_address) { alert('Tafadhali jaza anuani ya kufikishiwa.'); return; }
+  } else if (deliveryType === 'delivery') {
+    payload.guest_address = document.getElementById('guest_address_li').value.trim();
+    if (!payload.guest_address) { alert('Tafadhali jaza anuani ya kufikishiwa.'); return; }
+  }
+
+  const r = await apiPost('orders.php', payload, 'create');
+  if (!r.success) { alert(r.message || 'Hitilafu imetokea.'); return; }
+
+  lastOrderCode = r.order_code;
+  localStorage.removeItem(CART_KEY);
+  updateCartBadge();
+
+  if (r.requires_payment) {
+    document.getElementById('paymentMsgText').textContent = r.payment_message;
+    document.getElementById('orderCodeShow').textContent = r.order_code;
+    document.getElementById('paymentModal').classList.remove('hidden');
+  } else {
+    document.getElementById('orderCodeShow2').textContent = r.order_code;
+    document.getElementById('successModal').classList.remove('hidden');
+  }
+}
+
+document.getElementById('paymentDetailsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    order_code: lastOrderCode,
+    payment_name: document.getElementById('pd_payment_name').value.trim(),
+    phone: document.getElementById('pd_phone').value.trim(),
+    transaction_id: document.getElementById('pd_transaction_id').value.trim(),
+  };
+  const r = await apiPost('orders.php', payload, 'submit_payment');
+  const msgEl = document.getElementById('paymentSubmitMsg');
+  msgEl.innerHTML = `<p class="alert ${r.success ? 'alert-success' : 'alert-error'}">${r.message}</p>`;
+  if (r.success) {
+    setTimeout(() => { window.location.href = 'track.html?code=' + encodeURIComponent(lastOrderCode); }, 1800);
+  }
+});
+
+function closePaymentModalAndTrack() {
+  window.location.href = 'track.html?code=' + encodeURIComponent(lastOrderCode);
+}
+
+renderCartItems();
+</script>
+</body>
+</html>

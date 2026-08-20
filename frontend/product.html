@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bidhaa - FRESH SCENTS</title>
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .size-options{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 20px}
+  .size-option{
+    border:2px solid var(--border);border-radius:10px;padding:10px 16px;cursor:pointer;
+    text-align:center;transition:.15s;background:#fff;min-width:90px;
+  }
+  .size-option .ml{font-weight:800;font-size:15px}
+  .size-option .pr{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .size-option.selected{border-color:var(--gold);background:#fbf6e8}
+  .size-option.out-of-stock{opacity:.45;cursor:not-allowed}
+  .size-option.out-of-stock .pr{color:#c0392b}
+</style>
+</head>
+<body>
+<div id="navbar-container"></div>
+
+<section>
+  <div class="container" id="pdContainer">
+    <p class="muted center">Inapakia bidhaa...</p>
+  </div>
+</section>
+
+<section class="container" id="relatedSection" style="display:none">
+  <div class="section-head"><div class="eyebrow">Unaweza Kupenda Pia</div><h2>Manukato Mengine</h2></div>
+  <div class="product-grid" id="relatedGrid"></div>
+</section>
+
+<div id="footer-container"></div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const productId = params.get('id');
+let currentProduct = null;
+let selectedVariant = null;
+let qty = 1;
+
+async function loadProduct() {
+  if (!productId) { window.location.href = 'products.html'; return; }
+  const r = await apiGet('products.php', { id: productId });
+  const c = document.getElementById('pdContainer');
+  if (!r.success) { c.innerHTML = '<p class="muted center">Bidhaa haikupatikana.</p>'; return; }
+  currentProduct = r.product;
+  const p = r.product;
+
+  // Chagua variant ya kwanza yenye stock kama default, la sivyo ya kwanza kabisa
+  selectedVariant = p.variants.find(v => v.stock_qty > 0) || p.variants[0] || null;
+
+  c.innerHTML = `
+    <div class="product-detail">
+      <div class="pd-image">
+        ${p.image_url ? `<img src="../backend/${p.image_url}" alt="${p.name}">` : `<span class="placeholder"><i class="bi bi-droplet-half"></i></span>`}
+      </div>
+      <div class="pd-info">
+        <div class="brand">${p.brand || 'Fresh Scents'}</div>
+        <h1>${p.name}</h1>
+        <p class="desc">${p.description || 'Harufu bora kutoka FRESH SCENTS, iliyotengenezwa kwa ubora wa hali ya juu.'}</p>
+
+        ${p.variants.length ? `
+        <label style="display:block;font-weight:700;font-size:14px;margin-bottom:4px">Chagua Ukubwa (ML)</label>
+        <div class="size-options" id="sizeOptions"></div>
+
+        <div class="price" id="selectedPrice">-</div>
+
+        <div class="qty-row">
+          <button onclick="changeQty(-1)">−</button>
+          <span id="qtyDisplay">1</span>
+          <button onclick="changeQty(1)">+</button>
+        </div>
+        <button class="btn btn-gold btn-block" onclick="addAndGo()">Ongeza Kwenye Kikapu — Nunua Sasa</button>
+        <button class="btn btn-outline btn-block" style="margin-top:10px" onclick="addOnly()">Ongeza Kikapuni Tu</button>
+        <p class="stock-note" id="stockNote"></p>
+        ` : `<p class="alert alert-error">Samahani, bidhaa hii haina ukubwa/bei bado. Rudi baadaye.</p>`}
+      </div>
+    </div>
+  `;
+
+  if (p.variants.length) renderSizeOptions();
+  loadRelated(p.category_id, p.id);
+}
+
+function renderSizeOptions() {
+  const wrap = document.getElementById('sizeOptions');
+  wrap.innerHTML = currentProduct.variants.map(v => `
+    <div class="size-option ${selectedVariant && selectedVariant.id === v.id ? 'selected' : ''} ${v.stock_qty <= 0 ? 'out-of-stock' : ''}"
+         onclick="${v.stock_qty > 0 ? `selectVariant(${v.id})` : ''}">
+      <div class="ml">${v.ml} ML</div>
+      <div class="pr">${v.stock_qty > 0 ? money(v.price) : 'Imeisha'}</div>
+    </div>
+  `).join('');
+  updatePriceDisplay();
+}
+
+function selectVariant(variantId) {
+  selectedVariant = currentProduct.variants.find(v => v.id === variantId);
+  renderSizeOptions();
+}
+
+function updatePriceDisplay() {
+  const priceEl = document.getElementById('selectedPrice');
+  const stockEl = document.getElementById('stockNote');
+  if (!selectedVariant) { priceEl.textContent = '-'; return; }
+  priceEl.textContent = money(selectedVariant.price);
+  stockEl.innerHTML = selectedVariant.stock_qty > 0 ? `<i class="bi bi-box-seam"></i> Vipo stoo: ${selectedVariant.stock_qty}` : '<i class="bi bi-exclamation-triangle"></i> Ukubwa huu haupo stoo kwa sasa';
+}
+
+function changeQty(delta) {
+  qty = Math.max(1, qty + delta);
+  document.getElementById('qtyDisplay').textContent = qty;
+}
+
+function buildCartItem() {
+  return {
+    variant_id: selectedVariant.id,
+    product_id: currentProduct.id,
+    name: currentProduct.name,
+    ml: selectedVariant.ml,
+    price: selectedVariant.price,
+    image_url: currentProduct.image_url ? '../backend/' + currentProduct.image_url : null,
+  };
+}
+
+function addOnly() {
+  if (!selectedVariant || selectedVariant.stock_qty <= 0) { alert('Tafadhali chagua ukubwa wenye stock.'); return; }
+  addToCart(buildCartItem(), qty);
+  alert('Imeongezwa kwenye kikapu chako!');
+}
+function addAndGo() {
+  if (!selectedVariant || selectedVariant.stock_qty <= 0) { alert('Tafadhali chagua ukubwa wenye stock.'); return; }
+  addToCart(buildCartItem(), qty);
+  window.location.href = 'cart.html';
+}
+
+async function loadRelated(categoryId, excludeId) {
+  const r = await apiGet('products.php', { category: categoryId || '' });
+  if (!r.success) return;
+  const items = r.products.filter(p => p.id != excludeId).slice(0, 4);
+  if (!items.length) return;
+  document.getElementById('relatedSection').style.display = 'block';
+  document.getElementById('relatedGrid').innerHTML = items.map(p => `
+    <div class="product-card" onclick="window.location.href='product.html?id=${p.id}'">
+      <div class="img-wrap">${p.image_url ? `<img src="../backend/${p.image_url}" alt="${p.name}">` : `<span class="placeholder"><i class="bi bi-droplet-half"></i></span>`}</div>
+      <div class="info">
+        <div class="brand">${p.brand || 'Fresh Scents'}</div>
+        <h4>${p.name}</h4>
+        <div class="ml">${p.variants.length > 1 ? p.variants.length + ' aina za ML' : (p.variants[0] ? p.variants[0].ml + ' ML' : '')}</div>
+        <div class="price-row"><span class="price">Kuanzia ${money(p.min_price)}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+loadProduct();
+</script>
+</body>
+</html>

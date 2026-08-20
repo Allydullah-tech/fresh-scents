@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRESH SCENTS — Harufu Nzuri, Hadhi Ya Kifalme</title>
+<meta name="description" content="FRESH SCENTS - Duka la manukato bora Tanzania. Agiza mtandaoni, chukua dukani au pata delivery.">
+<link rel="icon" href="images/logo.jpeg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="navbar-container"></div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="container hero-inner">
+    <img class="logo-badge" src="images/logo.jpeg" alt="Fresh Scents Logo">
+    <h1>Karibu <span>FRESH SCENTS</span></h1>
+    <p class="tagline">Harufu Nzuri, Hadhi Ya Kifalme</p>
+    <div class="hero-btns">
+      <a href="products.html" class="btn btn-gold">Angalia Manukato <i class="bi bi-droplet-half"></i></a>
+      <a href="track.html" class="btn btn-outline" style="color:#f2e9cf;border-color:#e8c85a">Fuatilia Oda Yangu</a>
+    </div>
+  </div>
+</div>
+
+<!-- WHY US -->
+<section class="container">
+  <div class="section-head">
+    <div class="eyebrow">Kwa Nini Utuchague</div>
+    <h2>Ubora Unaoonekana, Huduma Inayosikika</h2>
+  </div>
+  <div class="product-grid">
+    <div class="product-card" style="cursor:default;text-align:center;padding:18px 14px">
+      <div style="font-size:26px;margin-bottom:8px;color:var(--gold)"><i class="bi bi-gem"></i></div>
+      <h4>Ubora wa Hali ya Juu</h4>
+      <p class="muted" style="font-size:12.5px">Manukato yanayodumu muda mrefu na harufu ya kifalme.</p>
+    </div>
+    <div class="product-card" style="cursor:default;text-align:center;padding:18px 14px">
+      <div style="font-size:26px;margin-bottom:8px;color:var(--gold)"><i class="bi bi-truck"></i></div>
+      <h4>Delivery Haraka</h4>
+      <p class="muted" style="font-size:12.5px">Agiza popote ulipo, tunakufikishia haraka iwezekanavyo.</p>
+    </div>
+    <div class="product-card" style="cursor:default;text-align:center;padding:18px 14px">
+      <div style="font-size:26px;margin-bottom:8px;color:var(--gold)"><i class="bi bi-shield-lock"></i></div>
+      <h4>Malipo Salama</h4>
+      <p class="muted" style="font-size:12.5px">Mfumo wa uthibitisho wa malipo unaokupa uhakika kila wakati.</p>
+    </div>
+    <div class="product-card" style="cursor:default;text-align:center;padding:18px 14px">
+      <div style="font-size:26px;margin-bottom:8px;color:var(--gold)"><i class="bi bi-box-seam"></i></div>
+      <h4>Fuatilia Oda Yako</h4>
+      <p class="muted" style="font-size:12.5px">Jua hatua ya oda yako wakati wowote, popote ulipo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED PRODUCTS -->
+<section class="container">
+  <div class="section-head">
+    <div class="eyebrow">Vipendwa Zaidi</div>
+    <h2>Manukato Yanayopendwa Zaidi</h2>
+  </div>
+  <div class="product-grid" id="featuredGrid"></div>
+  <div class="center" style="margin-top:34px">
+    <a href="products.html" class="btn btn-outline">Angalia Manukato Yote &rarr;</a>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="background:linear-gradient(135deg,#1a1408,#2b2118);color:#f2e9cf;text-align:center">
+  <div class="container">
+    <h2 style="color:#fff">Umeshapata Harufu Yako Uipendayo?</h2>
+    <p class="muted" style="color:#cfc19a;max-width:520px;margin:10px auto 26px">Chagua unavyopenda: chukua dukani bila malipo mtandaoni, au tupatie anuani yako na tutakuletea nyumbani.</p>
+    <a href="products.html" class="btn btn-gold">Anza Kununua Sasa</a>
+  </div>
+</section>
+
+<div id="footer-container"></div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+async function loadFeatured() {
+  const grid = document.getElementById('featuredGrid');
+  grid.innerHTML = '<p class="muted">Inapakia bidhaa...</p>';
+  const r = await apiGet('products.php', { featured: 1 });
+  if (!r.success || !r.products.length) {
+    const r2 = await apiGet('products.php');
+    renderProducts(r2.products.slice(0, 8));
+    return;
+  }
+  renderProducts(r.products);
+}
+function renderProducts(products) {
+  const grid = document.getElementById('featuredGrid');
+  if (!products.length) { grid.innerHTML = '<p class="muted">Hakuna bidhaa kwa sasa.</p>'; return; }
+  grid.innerHTML = products.map(p => {
+    const mlLabel = p.variants.length > 1
+      ? `${p.variants.length} aina za ML (${p.variants.map(v => v.ml).join(', ')})`
+      : (p.variants[0] ? `${p.variants[0].ml} ML` : '');
+    const priceLabel = p.min_price === p.max_price ? money(p.min_price) : `Kuanzia ${money(p.min_price)}`;
+    return `
+    <div class="product-card" onclick="window.location.href='product.html?id=${p.id}'">
+      <div class="img-wrap">
+        ${p.is_featured == 1 ? '<span class="featured-tag"><i class="bi bi-star-fill"></i> Maarufu</span>' : ''}
+        ${p.image_url ? `<img src="../backend/${p.image_url}" alt="${p.name}">` : `<span class="placeholder"><i class="bi bi-droplet-half"></i></span>`}
+      </div>
+      <div class="info">
+        <div class="brand">${p.brand || 'Fresh Scents'}</div>
+        <h4>${p.name}</h4>
+        <div class="ml">${mlLabel}</div>
+        <div class="price-row">
+          <span class="price">${priceLabel}</span>
+          <button class="add-btn" onclick="event.stopPropagation(); window.location.href='product.html?id=${p.id}'">Chagua Ukubwa</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+loadFeatured();
+</script>
+</body>
+</html>
